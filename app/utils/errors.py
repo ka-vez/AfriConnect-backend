@@ -1,0 +1,60 @@
+"""
+Custom exception classes for the application.
+"""
+
+from fastapi import HTTPException, status
+
+
+class AuthenticationError(HTTPException):
+    """Raised when authentication fails"""
+    def __init__(self, detail: str = "Invalid credentials"):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=detail,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+class UnauthorizedError(HTTPException):
+    """Raised when user is not authorized for an action"""
+    def __init__(self, detail: str = "Not authorized to perform this action"):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=detail,
+        )
+
+
+class NotFoundError(HTTPException):
+    """Raised when a resource is not found"""
+    def __init__(self, detail: str = "Resource not found"):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=detail,
+        )
+
+
+class ValidationError(HTTPException):
+    """Raised when request validation fails"""
+    def __init__(self, detail: str = "Validation failed"):
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=detail,
+        )
+
+
+class BadRequestError(HTTPException):
+    """Raised for bad requests"""
+    def __init__(self, detail: str = "Bad request"):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail,
+        )
+
+
+class ConflictError(HTTPException):
+    """Raised when resource already exists"""
+    def __init__(self, detail: str = "Resource already exists"):
+        super().__init__(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail,
+        )
