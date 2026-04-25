@@ -11,7 +11,7 @@ class DeckRequestCreate(BaseModel):
     """
     Request schema for requesting a pitch deck.
     """
-    startup_id: int = Field(description="ID of the founder/startup")
+    startup_id: str = Field(description="ID of the founder/startup")
     note: Optional[str] = Field(None, max_length=500, description="Optional note with the request")
 
 
@@ -19,7 +19,7 @@ class PartnershipInitiate(BaseModel):
     """
     Request schema for initiating a formal partnership.
     """
-    startup_id: int = Field(description="ID of the founder/startup")
+    startup_id: str = Field(description="ID of the founder/startup")
     note: Optional[str] = Field(None, max_length=500, description="Note about the meeting/partnership")
 
 
@@ -27,7 +27,7 @@ class PartnershipResponse(BaseModel):
     """
     Response schema for partnership details.
     """
-    id: int
+    id: str
     investor_name: str
     founder_name: str
     startup_name: str
@@ -68,7 +68,7 @@ class MessageResponse(BaseModel):
     """
     Response schema for a message.
     """
-    id: int
+    id: str
     sender_name: str
     content: str
     created_at: datetime

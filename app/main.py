@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import create_db_and_tables
 from app.middleware.auth_middleware import AuthMiddleware
-from app.api.v1 import auth, founder, investor, partnership
+from app.api.v1 import auth, founder, investor, partnership, landing
 
 # Get settings
 settings = get_settings()
@@ -55,6 +55,7 @@ app.add_middleware(
 app.add_middleware(AuthMiddleware)
 
 # Include all API v1 routers
+app.include_router(landing.router, prefix=settings.api_v1_str)
 app.include_router(auth.router, prefix=settings.api_v1_str)
 app.include_router(founder.router, prefix=settings.api_v1_str)
 app.include_router(investor.router, prefix=settings.api_v1_str)

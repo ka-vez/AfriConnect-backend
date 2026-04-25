@@ -5,6 +5,7 @@ Contains investment firm and portfolio details.
 
 from sqlmodel import SQLModel, Field
 from typing import Optional
+import uuid
 
 
 class Investor(SQLModel, table=True):
@@ -27,14 +28,14 @@ class Investor(SQLModel, table=True):
     
     __tablename__ = "investors" # type: ignore
     
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", unique=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", unique=True)
     firm_name: str = Field(max_length=255)
     investment_thesis: str = Field(max_length=1000)
     preferred_sectors: Optional[str] = Field(default=None, max_length=500)
-    min_ticket_size: float = Field(gt=0)
-    max_ticket_size: float = Field(gt=0)
     currency: str = Field(default="USD", max_length=3)
     deals_reviewed: int = Field(default=0)
     active_partnerships: int = Field(default=0)
     portfolio_companies: Optional[str] = Field(default=None, max_length=1000)
+    featured: bool = Field(default=False)
+    max_investment_amount: int

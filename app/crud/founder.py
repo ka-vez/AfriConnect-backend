@@ -18,18 +18,18 @@ def get_all_founders(session: Session, skip: int = 0, limit: int = 100) -> list[
     Returns:
         List of founder profiles
     """
-    return session.exec(select(Founder).offset(skip).limit(limit)).all()
+    return list(session.exec(select(Founder).offset(skip).limit(limit)).all())
 
 
 def get_founders_by_sector(session: Session, sector: str) -> list[Founder]:
     """Get founders by sector"""
-    return session.exec(
+    return list(session.exec(
         select(Founder).where(Founder.startup_sector == sector)
-    ).all()
+    ).all())
 
 
 def get_founders_by_stage(session: Session, stage: str) -> list[Founder]:
     """Get founders by startup stage"""
-    return session.exec(
+    return list(session.exec(
         select(Founder).where(Founder.stage == stage)
-    ).all()
+    ).all())

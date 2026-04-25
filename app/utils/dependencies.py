@@ -11,6 +11,7 @@ from typing import Annotated
 from jose import jwt, JWTError
 from app.utils.jwt_handler import decode_token
 from app.config import settings
+import uuid  # ADD THIS
 
 # Security scheme for OpenAPI documentation
 # OAuth2 scheme for token authentication
@@ -46,8 +47,8 @@ def get_current_user(
                 detail="Could not validate user",
             )
         
-        # Fetch user from database
-        user = session.get(User, int(user_id))
+        # Fetch user from database - CHANGE THIS LINE
+        user = session.get(User, uuid.UUID(user_id))  # Changed from int(user_id)
         
         if not user:
             raise HTTPException(

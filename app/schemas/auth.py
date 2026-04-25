@@ -20,7 +20,7 @@ class UserInfo(BaseModel):
         avatar: User's avatar URL
         role: User role (founder or investor)
     """
-    id: int
+    id: str
     email: str
     full_name: str
     avatar: Optional[str] = None
@@ -41,40 +41,30 @@ class TokenResponse(BaseModel):
     user: UserInfo
 
 
-class SignUpRequest(BaseModel):
-    """
-    Request schema for user signup.
-    
-    Attributes:
-        email: User email
-        password: User password (8-72 characters, bcrypt limit)
-        full_name: User's full name
-        role: User role ("founder" or "investor")
-        startup_name: (Founder only) Startup name
-        startup_pitch: (Founder only) Elevator pitch
-        startup_sector: (Founder only) Industry sector
-        the_ask: (Founder only) Funding amount requested
-        firm_name: (Investor only) Investment firm name
-        investment_thesis: (Investor only) Investment thesis
-        min_ticket_size: (Investor only) Minimum check size
-        max_ticket_size: (Investor only) Maximum check size
-    """
+class SignUpFounderRequest(BaseModel):
+    # user specific data
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72, description="Password must be 8-72 characters (bcrypt limit)")
     full_name: str
-    role: str  # "founder" or "investor"
+    role: str | None = None
     
     # Founder-specific fields (optional)
     startup_name: Optional[str] = None
     startup_pitch: Optional[str] = None
     startup_sector: Optional[str] = None
     the_ask: Optional[float] = None
+
+
+class SignUpInvestorRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=72, description="Password must be 8-72 characters (bcrypt limit)")
+    full_name: str
+    role: str | None = None
     
     # Investor-specific fields (optional)
     firm_name: Optional[str] = None
     investment_thesis: Optional[str] = None
-    min_ticket_size: Optional[float] = None
-    max_ticket_size: Optional[float] = None
+    max_investment_amount: int
 
 
 class LoginRequest(BaseModel):
@@ -101,7 +91,7 @@ class CurrentUser(BaseModel):
         role: User role
         is_active: Whether user account is active
     """
-    id: int
+    id: str
     email: str
     full_name: str
     avatar: Optional[str] = None

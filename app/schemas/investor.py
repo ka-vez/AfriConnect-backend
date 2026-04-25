@@ -10,7 +10,7 @@ class StartupDiscoveryItem(BaseModel):
     """
     Represents a startup in the investor discovery feed.
     """
-    id: int
+    id: str
     startup_name: str
     founder_name: str
     pitch: str
@@ -41,7 +41,7 @@ class SavedFounder(BaseModel):
     """
     Represents a saved founder in investor's pipeline.
     """
-    id: int
+    id: str
     startup_name: str
     founder_name: str
     pitch: str
@@ -63,22 +63,18 @@ class InvestorProfileUpdate(BaseModel):
     firm_name: Optional[str] = None
     investment_thesis: Optional[str] = None
     preferred_sectors: Optional[str] = None
-    min_ticket_size: Optional[float] = Field(None, gt=0)
-    max_ticket_size: Optional[float] = Field(None, gt=0)
 
 
 class InvestorProfileResponse(BaseModel):
     """
     Response schema for investor profile.
     """
-    id: int
+    id: str
     email: str
     full_name: str
     firm_name: str
     investment_thesis: str
     preferred_sectors: Optional[str]
-    min_ticket_size: float
-    max_ticket_size: float
     currency: str
     deals_reviewed: int
     active_partnerships: int

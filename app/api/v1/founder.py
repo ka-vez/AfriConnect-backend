@@ -5,9 +5,10 @@ Founder-specific endpoints.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from app.database import get_session
 from app.models import User, Founder, UserRole
+from app.models.partnership import Partnership, PartnershipStatus
 from app.schemas.founder import (
     FounderProfileResponse,
     FounderProfileUpdate,
@@ -22,11 +23,11 @@ from datetime import datetime
 router = APIRouter(prefix="/founder", tags=["Founder"])
 
 
-def _require_founder_id(founder: Founder) -> int:
+def _require_founder_id(founder: Founder) -> str:
     """Ensure founder has a persisted primary key."""
     if founder.id is None:
         raise NotFoundError(detail="Founder profile not found")
-    return founder.id
+    return str(founder.id)
 
 
 @router.get("/feed", response_model=FounderFeedResponse)
@@ -42,15 +43,35 @@ def get_founder_feed(
     if not founder:
         raise NotFoundError(detail="Founder profile not found")
     
+    # Get total investors on platform
+    total_investors = session.exec(
+        select(func.count()).select_from(User).where(
+            User.role == UserRole.INVESTOR,
+            User.is_active == True
+        )
+    ).one()
+    
+    # Get active partnerships for this founder
+    active_partnerships = session.exec(
+        select(Partnership).where(
+            Partnership.founder_id == current_user.id,
+            Partnership.status == PartnershipStatus.ACTIVE
+        )
+    ).all()
+    
+    active_partnerships_count = len(active_partnerships)
+    
+    # Calculate total raised: active partnerships * founder's ask
+    total_raised = active_partnerships_count * founder.the_ask
+    
     return FounderFeedResponse(
         profile_completion_percent=founder.profile_completion_percent,
         platform_stats={
-            "total_investors": 150,
-            "active_opportunities": 42,
-            "total_raised": 5000000,
+            "total_investors": total_investors,
+            "active_partnerships": active_partnerships_count,
+            "total_raised": total_raised,
         },
         recent_investor_activity=[],
-        featured_investors=[],
         opportunities=[],
     )
 

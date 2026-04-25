@@ -3,14 +3,13 @@ Authentication endpoints.
 """
 
 from __future__ import annotations
-
 from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlmodel import Session
 from app.database import get_session
-from app.models import User
+from app.models import User, Founder
 from app.schemas.auth import (
-    SignUpRequest,
-    LoginRequest,
+    SignUpFounderRequest,
+    SignUpInvestorRequest,
     TokenResponse,
     UserInfo,
     CurrentUser,
@@ -18,24 +17,25 @@ from app.schemas.auth import (
 from app.services.auth_service import AuthService
 from app.utils.dependencies import get_current_user
 from app.utils.errors import AuthenticationError
+from sqlmodel import select
 
 # Create router for auth endpoints
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-def _require_user_id(user: User) -> int:
+def _require_user_id(user: User) -> str:
     """Helper to extract user ID or raise error."""
     if user.id is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="User ID is missing",
         )
-    return user.id
+    return str(user.id)
 
 
-@router.post("/signup", response_model=TokenResponse)
-def signup(
-    signup_data: SignUpRequest,
+@router.post("/signup-founder", response_model=TokenResponse)
+def signup_founder(
+    signup_data: SignUpFounderRequest,
     session: Session = Depends(get_session),
 ):
     """
@@ -44,13 +44,61 @@ def signup(
     Requires role-specific fields based on user type.
     """
     try:
+        signup_data.role = "founder"
+        user, token = AuthService.signup(session, signup_data)
+        user_id = _require_user_id(user)
+
+        founder = session.exec(
+            select(Founder).where(Founder.user_id == user_id)
+        ).first()
+        
+        if founder is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Founder profile is missing",
+            )
+        founder.profile_completion_percent = 40
+        session.add(founder)
+        session.commit()
+        
+        return TokenResponse(
+            access_token=token,
+            user=UserInfo(
+                id=str(user_id),
+                email=user.email,
+                full_name=user.full_name,
+                avatar=user.avatar,
+                role=user.role,
+            ),
+        )
+
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    
+
+@router.post("/signup-investor", response_model=TokenResponse)
+def signup_investor(
+    signup_data: SignUpInvestorRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    Register a new user (Founder or Investor).
+    
+    Requires role-specific fields based on user type.
+    """
+    try:
+        signup_data.role = "investor"
         user, token = AuthService.signup(session, signup_data)
         user_id = _require_user_id(user)
         
         return TokenResponse(
             access_token=token,
             user=UserInfo(
-                id=user_id,
+                id=str(user_id),
                 email=user.email,
                 full_name=user.full_name,
                 avatar=user.avatar,
@@ -64,38 +112,8 @@ def signup(
         )
 
 
-@router.post("/login", response_model=TokenResponse)
-def login(
-    login_data: LoginRequest,
-    session: Session = Depends(get_session),
-):
-    """
-    Authenticate user with JSON body and return JWT token.
-    Use this for API clients.
-    """
-    try:
-        user, token = AuthService.login(session, login_data.email, login_data.password)
-        user_id = _require_user_id(user)
-        
-        return TokenResponse(
-            access_token=token,
-            user=UserInfo(
-                id=user_id,
-                email=user.email,
-                full_name=user.full_name,
-                avatar=user.avatar,
-                role=user.role,
-            ),
-        )
-    except AuthenticationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-        )
-
-
 @router.post("/token")
-def login_form(
+def login_for_access_token(
     username: str = Form(...),
     password: str = Form(...),
     session: Session = Depends(get_session),
@@ -114,14 +132,7 @@ def login_form(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
-
-@router.post("/logout")
-def logout():
-    """
-    Logout endpoint (token invalidation handled client-side).
-    """
-    return {"message": "Logged out successfully"}
-
+    
 
 @router.get("/me", response_model=CurrentUser)
 def get_current_user_info(

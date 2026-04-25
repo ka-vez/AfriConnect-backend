@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, Field, Column, String, DateTime
 from datetime import datetime
 from typing import Optional
 from enum import Enum
+import uuid
 
 
 class UserRole(str, Enum):
@@ -33,7 +34,7 @@ class User(SQLModel, table=True):
     
     __tablename__ = "users" # type: ignore
     
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
     email: str = Field(unique=True, index=True, max_length=255)
     password_hash: str
     full_name: str = Field(max_length=255)

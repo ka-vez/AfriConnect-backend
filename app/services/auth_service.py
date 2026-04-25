@@ -4,11 +4,11 @@ Authentication service - Business logic for auth operations.
 
 from sqlmodel import Session, select
 from app.models import User, UserRole, Founder, Investor, StartupStage
-from app.schemas.auth import SignUpRequest
+from app.schemas.auth import SignUpFounderRequest, SignUpInvestorRequest
 from app.utils.security import hash_password, verify_password
 from app.utils.jwt_handler import create_access_token
 from app.utils.errors import ConflictError, AuthenticationError, ValidationError
-from typing import Tuple
+from typing import Tuple, cast
 
 
 class AuthService:
@@ -40,7 +40,7 @@ class AuthService:
             )
     
     @staticmethod
-    def signup(session: Session, signup_data: SignUpRequest) -> Tuple[User, str]:
+    def signup(session: Session, signup_data: SignUpFounderRequest | SignUpInvestorRequest) -> Tuple[User, str]:
         """
         Register a new user with their role-specific profile.
         
@@ -67,7 +67,10 @@ class AuthService:
             raise ConflictError(detail="Email already registered")
         
         # Validate and normalize role
-        role_lower = signup_data.role.lower().strip()
+        if not signup_data.role or not signup_data.role.strip():
+            raise ValidationError(detail="Role must be 'founder' or 'investor'")
+        
+        role_lower = signup_data.role.strip().lower()
         if role_lower not in ["founder", "investor"]:
             raise ValidationError(detail="Role must be 'founder' or 'investor'")
         
@@ -93,27 +96,28 @@ class AuthService:
 
         if user.id is None:
             raise RuntimeError("Failed to create user ID")
-        user_id: int = user.id
+        user_id = user.id
         
         # Create role-specific profile
         if user_role == UserRole.FOUNDER:
+            founder_data = cast(SignUpFounderRequest, signup_data)
             founder = Founder(
                 user_id=user_id,
-                startup_name=signup_data.startup_name or "Unnamed Startup",
-                startup_pitch=signup_data.startup_pitch or "",
-                startup_sector=signup_data.startup_sector or "Technology",
-                the_ask=signup_data.the_ask or 100000.0,
+                startup_name=founder_data.startup_name or "Unnamed Startup",
+                startup_pitch=founder_data.startup_pitch or "",
+                startup_sector=founder_data.startup_sector or "Technology",
+                the_ask=founder_data.the_ask or 100000.0,
                 stage=StartupStage.IDEA,
             )
             session.add(founder)
         
         elif user_role == UserRole.INVESTOR:
+            investor_data = cast(SignUpInvestorRequest, signup_data)
             investor = Investor(
                 user_id=user_id,
-                firm_name=signup_data.firm_name or "Investment Firm",
-                investment_thesis=signup_data.investment_thesis or "",
-                min_ticket_size=signup_data.min_ticket_size or 50000.0,
-                max_ticket_size=signup_data.max_ticket_size or 500000.0,
+                firm_name=investor_data.firm_name or "Investment Firm",
+                investment_thesis=investor_data.investment_thesis or "",
+                max_investment_amount=investor_data.max_investment_amount
             )
             session.add(investor)
         
@@ -171,7 +175,7 @@ class AuthService:
         if user.id is None:
             raise AuthenticationError(detail="Invalid user account")
         
-        user_id: int = user.id
+        user_id = user.id
         
         # Generate JWT token (expires in 30 minutes)
         access_token = create_access_token(data={"sub": str(user_id)})

@@ -6,6 +6,7 @@ Contains startup-specific information.
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional
 from enum import Enum
+import uuid
 
 
 class StartupStage(str, Enum):
@@ -42,8 +43,8 @@ class Founder(SQLModel, table=True):
     
     __tablename__ = "founders" # type: ignore
     
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id", unique=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    user_id: uuid.UUID = Field(foreign_key="users.id", unique=True)
     startup_name: str = Field(max_length=255)
     startup_pitch: str = Field(max_length=1000)
     startup_sector: str = Field(max_length=100)
@@ -56,3 +57,4 @@ class Founder(SQLModel, table=True):
     traction_views: int = Field(default=0)
     traction_interest: int = Field(default=0)
     traction_deck_requests: int = Field(default=0)
+    profile_views: int = Field(default=0)

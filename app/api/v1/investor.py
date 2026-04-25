@@ -7,17 +7,20 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, status
 from sqlmodel import Session, select
 from app.database import get_session
+from app.models import PartnershipType
 from app.models import User, Investor, Founder, Partnership
 from app.schemas.investor import (
     InvestorProfileResponse,
     InvestorProfileUpdate,
     StartupDiscoveryItem,
     SavedFounder,
-    PrivateNoteUpdate,
+    PrivateNoteUpdate
 )
 from app.utils.dependencies import get_investor_or_404
 from app.utils.errors import NotFoundError, BadRequestError
 from datetime import datetime
+from app.models.partnership import Partnership, PartnershipStatus
+from uuid import UUID
 
 # Create router for investor endpoints
 router = APIRouter(prefix="/investors", tags=["Investor"])
@@ -62,7 +65,7 @@ def discover_startups(
         ).first()
         
         result.append(StartupDiscoveryItem(
-            id=founder.user_id,
+            id=str(founder.user_id),
             startup_name=founder.startup_name,
             founder_name=founder_user.full_name if founder_user else "Unknown",
             pitch=founder.startup_pitch,
@@ -88,7 +91,11 @@ def get_saved_founders(
     """
     # Get partnerships for this investor
     partnerships = session.exec(
-        select(Partnership).where(Partnership.investor_id == current_user.id)
+        select(Partnership)
+        .where(Partnership.investor_id == current_user.id, 
+               Partnership.partnership_type == PartnershipType.ARCHIVED,
+               Partnership.status == PartnershipStatus.ARCHIVED
+               )
     ).all()
     
     result = []
@@ -103,7 +110,7 @@ def get_saved_founders(
             ).first()
             
             result.append(SavedFounder(
-                id=founder.user_id,
+                id=str(founder.user_id),
                 startup_name=founder.startup_name,
                 founder_name=founder_user.full_name if founder_user else "Unknown",
                 pitch=founder.startup_pitch,
@@ -119,7 +126,7 @@ def get_saved_founders(
 
 @router.post("/saved/{startup_id}", status_code=status.HTTP_201_CREATED)
 def save_founder(
-    startup_id: int,
+    startup_id: str,
     current_user: User = Depends(get_investor_or_404),
     session: Session = Depends(get_session),
 ):
@@ -149,12 +156,11 @@ def save_founder(
     if existing:
         raise BadRequestError(detail="Founder already saved")
     
-    # Create partnership
-    from app.models import PartnershipType
     partnership = Partnership(
         investor_id=investor_id,
-        founder_id=startup_id,
-        partnership_type=PartnershipType.MEETING_REQUEST,
+        founder_id=UUID(startup_id),
+        partnership_type=PartnershipType.ARCHIVED,
+        status = PartnershipStatus.ARCHIVED
     )
     
     session.add(partnership)
@@ -165,7 +171,7 @@ def save_founder(
 
 @router.delete("/saved/{startup_id}")
 def remove_saved_founder(
-    startup_id: int,
+    startup_id: str,
     current_user: User = Depends(get_investor_or_404),
     session: Session = Depends(get_session),
 ):
@@ -237,14 +243,12 @@ def get_investor_profile(
         raise NotFoundError(detail="Investor profile not found")
     
     return InvestorProfileResponse(
-        id=investor_id,
+        id=str(investor_id),
         email=current_user.email,
         full_name=current_user.full_name,
         firm_name=investor.firm_name,
         investment_thesis=investor.investment_thesis,
         preferred_sectors=investor.preferred_sectors,
-        min_ticket_size=investor.min_ticket_size,
-        max_ticket_size=investor.max_ticket_size,
         currency=investor.currency,
         deals_reviewed=investor.deals_reviewed,
         active_partnerships=investor.active_partnerships,
@@ -281,11 +285,6 @@ def update_investor_profile(
     if profile_update.preferred_sectors is not None:
         investor.preferred_sectors = profile_update.preferred_sectors
     
-    if profile_update.min_ticket_size is not None:
-        investor.min_ticket_size = profile_update.min_ticket_size
-    
-    if profile_update.max_ticket_size is not None:
-        investor.max_ticket_size = profile_update.max_ticket_size
     
     # Update timestamp
     current_user.updated_at = datetime.utcnow()
@@ -300,16 +299,70 @@ def update_investor_profile(
         raise NotFoundError(detail="Investor profile not found")
     
     return InvestorProfileResponse(
-        id=investor_id,
+        id=str(investor_id),
         email=current_user.email,
         full_name=current_user.full_name,
         firm_name=investor.firm_name,
         investment_thesis=investor.investment_thesis,
         preferred_sectors=investor.preferred_sectors,
-        min_ticket_size=investor.min_ticket_size,
-        max_ticket_size=investor.max_ticket_size,
         currency=investor.currency,
         deals_reviewed=investor.deals_reviewed,
         active_partnerships=investor.active_partnerships,
         portfolio_companies=investor.portfolio_companies,
     )
+
+
+@router.get("/founders/{founder_id}")
+def view_founder_profile(
+    founder_id: str,
+    current_user: User = Depends(get_investor_or_404),
+    session: Session = Depends(get_session),
+):
+    """
+    Get detailed founder and startup profile information.
+    Increments the founder's profile_views counter by 1.
+    
+    Args:
+        founder_id: The user ID of the founder
+        current_user: Authenticated investor user
+        session: Database session
+    
+    Returns:
+        Founder profile with startup details and updated view count
+    """
+    # Get founder profile by user_id
+    founder = session.exec(
+        select(Founder).where(Founder.user_id == founder_id)
+    ).first()
+    
+    if not founder:
+        raise NotFoundError(detail="Founder not found")
+    
+    # Get founder user information
+    founder_user = session.exec(
+        select(User).where(User.id == founder_id)
+    ).first()
+    
+    if not founder_user:
+        raise NotFoundError(detail="Founder user not found")
+    
+    # Increment profile_views
+    founder.profile_views += 1
+    session.add(founder)
+    session.commit()
+    session.refresh(founder)
+    
+    return {
+        "id": founder.user_id,
+        "email": founder_user.email,
+        "full_name": founder_user.full_name,
+        "startup_name": founder.startup_name,
+        "startup_pitch": founder.startup_pitch,
+        "startup_sector": founder.startup_sector,
+        "stage": founder.stage,
+        "the_ask": founder.the_ask,
+        "currency": founder.currency,
+        "experience": founder.experience,
+        "education": founder.education,
+        "profile_views": founder.profile_views,
+    }

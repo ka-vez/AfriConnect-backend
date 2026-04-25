@@ -6,6 +6,7 @@ from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
 from enum import Enum
+import uuid
 
 
 class PartnershipStatus(str, Enum):
@@ -20,6 +21,7 @@ class PartnershipStatus(str, Enum):
 
 class PartnershipType(str, Enum):
     """Types of partnership requests"""
+    ARCHIVED = "archive" # this basically means an investor saved a startup without sending a partnership request 
     DECK_REQUEST = "deck_request"
     MEETING_REQUEST = "meeting_request"
 
@@ -44,9 +46,9 @@ class Partnership(SQLModel, table=True):
     
     __tablename__ = "partnerships" # type: ignore
     
-    id: Optional[int] = Field(default=None, primary_key=True)
-    investor_id: int = Field(foreign_key="users.id")
-    founder_id: int = Field(foreign_key="users.id")
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, index=True)
+    investor_id: uuid.UUID = Field(foreign_key="users.id")
+    founder_id: uuid.UUID = Field(foreign_key="users.id")
     partnership_type: PartnershipType
     status: PartnershipStatus = Field(default=PartnershipStatus.PENDING)
     investor_note: Optional[str] = Field(default=None, max_length=1000)

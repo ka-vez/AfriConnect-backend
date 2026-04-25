@@ -25,7 +25,7 @@ class FounderProfileResponse(BaseModel):
     """
     Response schema for founder profile.
     """
-    id: int
+    id: str
     email: str
     full_name: str
     startup_name: str
@@ -61,5 +61,4 @@ class FounderFeedResponse(BaseModel):
     profile_completion_percent: int
     platform_stats: dict
     recent_investor_activity: list
-    featured_investors: list
     opportunities: list

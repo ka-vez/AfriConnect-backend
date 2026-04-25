@@ -8,9 +8,11 @@ from app.models import Message
 
 def get_messages_in_partnership(session: Session, partnership_id: int) -> list[Message]:
     """Get all messages in a partnership"""
-    return session.exec(
-        select(Message).where(Message.partnership_id == partnership_id)
-    ).all()
+    return list(
+        session.exec(
+            select(Message).where(Message.partnership_id == partnership_id)
+        ).all()
+    )
 
 
 def create_message(

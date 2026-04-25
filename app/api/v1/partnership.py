@@ -28,15 +28,17 @@ from app.schemas.partnership import (
 from app.utils.dependencies import get_investor_or_404, get_founder_or_404, get_current_user
 from app.utils.errors import NotFoundError, UnauthorizedError, BadRequestError
 from datetime import datetime
+from uuid import UUID
+from app.models import UserRole
 
 # Create router for partnership endpoints
 router = APIRouter(prefix="/partnerships", tags=["Partnership"])
 
 
-def _require_user_id(user: User) -> int:
+def _require_user_id(user: User) -> str:
     if user.id is None:
         raise UnauthorizedError(detail="Invalid authenticated user")
-    return user.id
+    return str(user.id)
 
 
 @router.post("/request-deck", status_code=status.HTTP_201_CREATED)
@@ -65,8 +67,8 @@ def request_deck(
     
     # Create partnership record
     partnership = Partnership(
-        investor_id=investor_id,
-        founder_id=deck_request.startup_id,
+        investor_id=UUID(investor_id),
+        founder_id=UUID(deck_request.startup_id),
         partnership_type=PartnershipType.DECK_REQUEST,
         investor_note=deck_request.note,
     )
@@ -106,8 +108,8 @@ def initiate_partnership(
     
     # Create partnership record
     partnership = Partnership(
-        investor_id=investor_id,
-        founder_id=partnership_init.startup_id,
+        investor_id=UUID(investor_id),
+        founder_id=UUID(partnership_init.startup_id),
         partnership_type=PartnershipType.MEETING_REQUEST,
         investor_note=partnership_init.note,
     )
@@ -131,7 +133,6 @@ def get_partnerships(
     - Investors see their active partnerships
     - Founders see incoming and active partnership requests
     """
-    from app.models import UserRole
     
     current_user_id = _require_user_id(current_user)
     partnerships = []
@@ -167,7 +168,7 @@ def get_partnerships(
         ).first()
         
         response_partnerships.append(PartnershipResponse(
-            id=p.id,
+            id=str(p.id),
             investor_name=investor_user.full_name if investor_user else "Unknown",
             founder_name=founder_user.full_name if founder_user else "Unknown",
             startup_name=founder.startup_name if founder else "Unknown",
@@ -227,7 +228,7 @@ def accept_partnership(
 
 @router.post("/{partnership_id}/message", status_code=status.HTTP_201_CREATED)
 def send_message(
-    partnership_id: int,
+    partnership_id: str,
     message_data: SendMessageRequest,
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -246,8 +247,8 @@ def send_message(
     current_user_id = _require_user_id(current_user)
 
     # Verify user is part of this partnership
-    is_investor = partnership.investor_id == current_user_id
-    is_founder = partnership.founder_id == current_user_id
+    is_investor = partnership.investor_id == UUID(current_user_id)
+    is_founder = partnership.founder_id == UUID(current_user_id)
     
     if not (is_investor or is_founder):
         raise UnauthorizedError(detail="Not authorized to message in this partnership")
@@ -258,8 +259,8 @@ def send_message(
     
     # Create message
     message = Message(
-        partnership_id=partnership_id,
-        sender_id=sender_id,
+        partnership_id=UUID(partnership_id),
+        sender_id=UUID(sender_id),
         receiver_id=receiver_id,
         content=message_data.content,
     )
